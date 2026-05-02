@@ -10,4 +10,5 @@ You can create uv environment based on requirements.txt file and install depende
 
 ```bash
 uv add -r requirements.txt
+uv sync
 ```
