@@ -1,0 +1,4 @@
+CREDITS_CSV_PATH = "../data/tmdb_5000_credits.csv"
+MOVIES_CSV_PATH = "../data/tmdb_5000_movies.csv"
+DUCKDB_PATH = "movies.duckdb"
+
