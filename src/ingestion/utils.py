@@ -2,7 +2,8 @@ import os
 import duckdb
 import pandas as pd
 import json
-
+from dotenv import load_dotenv
+load_dotenv()
 
 DB_PATH = os.getenv("DUCKDB_PATH", "movies.duckdb")
 
