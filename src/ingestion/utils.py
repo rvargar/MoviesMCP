@@ -1,6 +1,18 @@
+import os
+import duckdb
 import pandas as pd
 import json
 
+
+DB_PATH = os.getenv("DUCKDB_PATH", "movies.duckdb")
+
+def get_db():
+    """Dependency: yields a DuckDB connection per request."""
+    con = duckdb.connect(DB_PATH, read_only=True)
+    try:
+        yield con
+    finally:
+        con.close()
 
 def _safe_parse_json(value) -> list:
     """Return a Python list from a JSON string, or [] on failure."""
