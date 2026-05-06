@@ -56,11 +56,11 @@ scripts are separately inggests Credits and Movies data. You need to run both sc
  uv run python src/ingestion/ingest_credits.py
 ```
 
-## Environment variables
+### Environment variables
 you can create `.env` file in the root directory and add below environment variables to it. These variables are used to configure the database connection and other settings.
 See: example_env file for reference.
 
-## Running FastAPI server
+### Running FastAPI server
 
 ```bash
 uv run src/movies_api.py 
@@ -73,13 +73,13 @@ curl -X 'GET' \
  ```
 <br> You can access swagger documentation at `http://localhost:8080/docs` to interact with the API endpoints. For further details provided in OpenAPI specs.
 
-## MCP Server
+### MCP Server
 The MCP server is using the FastAPI server as a backend to fetch movies data based on user queries. It listens for incoming requests from the MCP client and processes them using the Movies API.
 To start the MCP server, run the following command:
 ```
     uv run src/movies_mcp_server.py
 ```
-## MCP Client
+### MCP Client
 Launching client with the following command (<b>please make sure you have already started the Movies API and the MCP server</b>):
 ```
  uv run src/movies_mcp_client.py
@@ -89,13 +89,38 @@ Example question:
 <br><b>Can you show sci-fi movies that Leonardo Dicaprio is playing and produced before 2015?</b>
 
 Response:<br>
+`gpt-oss-120b:free:`<br>
+Here’s the sci‑fi film that matches your criteria:
+
+| Title | Release Year | Rating |
+|-------|--------------|--------|
+| **Inception** | 2010 | 8.1 |
+
+Leonardo DiCaprio stars in *Inception*, a science‑fiction thriller directed by Christopher Nolan and released in 2010, which is before 2015. If you’d like more recommendations (e.g., other sci‑fi titles starring Leonardo DiCaprio, or similar movies), just let me know!<br><br>
+`Mistral medium 3:`<br>
 Here is a sci-fi movie starring Leonardo DiCaprio produced before 2015:
 
 | Title | Release Year | Rating | Description |
 |--------|---------------|--------|-------------|
 | Inception | 2010 | 8.1 | Cobb, a skilled thief who commits corporate espionage by infiltrating the subconscious of his targets is offered a chance to regain his old life as payment for a task considered to be impossible: "inception", the implantation of another person's idea into a target's subconscious. |
+<br><br>
+<b>What are the top 5 most popular movies directed by Christopher Nolan?</b><br><br>
+`gpt-oss-120b:free:`<br>
+### Top 5 Most Popular Christopher Nolan Films  
 
-<b>What are the top 5 most popular movies directed by Christopher Nolan?</b><br>
+| Rank | Title | Release Year | TMDB Popularity* | TMDB Rating |
+|------|-------|--------------|------------------|-------------|
+| 1 | **Interstellar** | 2014 | 724.25 | 8.1 |
+| 2 | **The Dark Knight** | 2008 | 187.32 | 8.2 |
+| 3 | **Inception** | 2010 | 167.58 | 8.1 |
+| 4 | **Batman Begins** | 2005 | 115.04 | 7.5 |
+| 5 | **The Dark Knight Rises** | 2012 | 112.31 | 7.6 |
+
+\*Popularity is a TMDB metric that reflects how often a movie is searched for and viewed in the database; higher numbers mean more buzz.
+
+These are the five Nolan‑directed movies with the greatest popularity scores in the database. Let me know if you’d like more details on any of them (e.g., plot summary, cast, or where to watch).
+<br>
+`Mistral medium 3:`<br>
 Certainly! Here's a concise summary of the top 5 most popular movies directed by Christopher Nolan:
 
 1. **The Dark Knight (2008)**
@@ -119,7 +144,7 @@ Certainly! Here's a concise summary of the top 5 most popular movies directed by
    - **Description:** Two magicians engage in a fierce rivalry with deadly consequences.
 
 These films showcase Christopher Nolan's versatility and mastery in blending complex narratives with stunning visuals and deep emotional themes.
-## Smoke tests
+### Smoke tests
 Generated Smoke tests for API calls are available under src/test folder.
 ```bash
 python -m pytest src/test/test_movies_api.py
