@@ -40,3 +40,27 @@ class MovieDetail(MovieSummary):
     cast: List[str] = []
     production_companies: List[str] = []
     production_countries: List[str] = []
+
+class CastMember(BaseModel):
+    movie_id: int
+    cast_id: Optional[int]
+    person_id: Optional[int]
+    name: str
+    character: Optional[str]
+    gender: Optional[int]
+    order: Optional[int]
+
+class CrewMember(BaseModel):
+    movie_id: int
+    person_id: Optional[int]
+    name: str
+    department: Optional[str]
+    job: Optional[str]
+    gender: Optional[int]
+
+class ActorCharacter(BaseModel):
+    movie_id: int
+    title: str
+    release_date: Optional[str]
+    character: Optional[str]
+    order: Optional[int]
