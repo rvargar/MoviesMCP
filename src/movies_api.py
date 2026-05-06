@@ -22,12 +22,16 @@ from models.movies_models import (Genre,
                                   Language,
                                   Country,
                                   MovieSummary,
-                                  MovieDetail)
+                                  MovieDetail,
+                                  CastMember,
+                                  CrewMember,
+                                  ActorCharacter)
 from ingestion.utils import get_db
 import duckdb
 from typing import List, Optional
 import os
 from fastapi import FastAPI, HTTPException, Query, Depends
+import uvicorn
 
 
 app = FastAPI(
@@ -173,6 +177,55 @@ def search_movies(
     return [MovieSummary(**row) for row in rows.to_dict(orient="records")]
 
 
+# ── static /movies/* routes must come BEFORE /movies/{movie_id} ──────────────
+
+@app.get(
+    "/movies/by-director",
+    response_model=List[MovieSummary],
+    summary="Get movies by director name",
+    tags=["Crew & Cast"],
+)
+def movies_by_director(
+    name: str = Query(..., description="Director name (partial match, case-insensitive), e.g. 'Spielberg'"),
+    sort_by: str = Query(
+        "popularity",
+        description="Sort field: popularity | vote_average | release_date",
+        enum=["popularity", "vote_average", "release_date"],
+    ),
+    sort_order: str = Query("desc", description="Sort direction", enum=["asc", "desc"]),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    """
+    Return movies directed by a person whose name partially matches **name**.
+    Looks up `job = 'Director'` rows in the `movie_crew` table.
+    """
+    sort_col = {
+        "popularity": "m.popularity",
+        "vote_average": "m.vote_average",
+        "release_date": "m.release_date",
+    }[sort_by]
+
+    sql = f"""
+        SELECT DISTINCT
+            m.id, m.title, m.release_date, m.popularity,
+            m.vote_average, m.vote_count, m.overview
+        FROM movies m
+        JOIN movie_crew mc ON m.id = mc.movie_id
+        WHERE mc.job = 'Director'
+          AND LOWER(mc.name) LIKE LOWER(?)
+        ORDER BY {sort_col} {sort_order.upper()} NULLS LAST
+        LIMIT ? OFFSET ?
+    """
+    rows = con.execute(sql, [f"%{name}%", limit, offset]).fetchdf()
+    if rows.empty:
+        return []
+    return [MovieSummary(**r) for r in rows.to_dict(orient="records")]
+
+
+# ── /movies/{movie_id} and its sub-resources ─────────────────────────────────
+
 @app.get(
     "/movies/{movie_id}",
     response_model=MovieDetail,
@@ -203,6 +256,73 @@ def get_movie(
     movie_row = row.to_dict(orient="records")[0]
     return _enrich_movie(movie_row, con)
 
+
+@app.get(
+    "/movies/{movie_id}/cast",
+    response_model=List[CastMember],
+    summary="Get cast of a movie",
+    tags=["Crew & Cast"],
+)
+def get_movie_cast(
+    movie_id: int,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    """
+    Return the full cast list for a movie, ordered by billing order.
+    """
+    rows = con.execute(
+        """
+        SELECT movie_id, cast_id, person_id, name, character, gender, "order"
+        FROM movie_cast
+        WHERE movie_id = ?
+        ORDER BY "order" NULLS LAST
+        """,
+        [movie_id],
+    ).fetchdf()
+    if rows.empty:
+        return []
+    return [CastMember(**r) for r in rows.to_dict(orient="records")]
+
+
+@app.get(
+    "/movies/{movie_id}/crew",
+    response_model=List[CrewMember],
+    summary="Get crew of a movie",
+    tags=["Crew & Cast"],
+)
+def get_movie_crew(
+    movie_id: int,
+    department: Optional[str] = Query(None, description="Filter by department (e.g. 'Directing', 'Writing')"),
+    job: Optional[str] = Query(None, description="Filter by job title (e.g. 'Director', 'Producer')"),
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    """
+    Return the full crew list for a movie, optionally filtered by department or job.
+    """
+    conditions = ["movie_id = ?"]
+    params: list = [movie_id]
+
+    if department:
+        conditions.append("LOWER(department) = LOWER(?)")
+        params.append(department)
+    if job:
+        conditions.append("LOWER(job) = LOWER(?)")
+        params.append(job)
+
+    where = " AND ".join(conditions)
+    sql = f"""
+        SELECT movie_id, person_id, name, department, job, gender
+        FROM movie_crew
+        WHERE {where}
+        ORDER BY department, job, name
+    """
+    rows = con.execute(sql, params).fetchdf()
+    if rows.empty:
+        return []
+    return [CrewMember(**r) for r in rows.to_dict(orient="records")]
+
+
+# ── /genres, /keywords, /languages, /countries ───────────────────────────────
 
 @app.get(
     "/genres",
@@ -267,3 +387,117 @@ def list_languages(con: duckdb.DuckDBPyConnection = Depends(get_db)):
         """
     ).fetchall()
     return [Language(iso_639_1=r[0], name=r[1]) for r in rows]
+
+
+@app.get(
+    "/countries",
+    response_model=List[Country],
+    summary="List all production countries",
+    tags=["Reference Data"],
+)
+def list_countries(con: duckdb.DuckDBPyConnection = Depends(get_db)):
+    """Return all distinct production countries available in the database."""
+    rows = con.execute(
+        """SELECT DISTINCT iso_3166_1, name 
+           FROM movie_production_countries 
+           ORDER BY name
+        """
+    ).fetchall()
+    return [Country(iso_3166_1=r[0], name=r[1]) for r in rows]
+
+
+# ── /actors/{actor_name}/* ────────────────────────────────────────────────────
+
+@app.get(
+    "/actors/{actor_name}/movies",
+    response_model=List[MovieSummary],
+    summary="Get all movies an actor appears in",
+    tags=["Crew & Cast"],
+)
+def actor_movies(
+    actor_name: str,
+    sort_by: str = Query(
+        "popularity",
+        description="Sort field: popularity | vote_average | release_date",
+        enum=["popularity", "vote_average", "release_date"],
+    ),
+    sort_order: str = Query("desc", description="Sort direction", enum=["asc", "desc"]),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    """
+    Return all movies in which an actor (partial name match) appears.
+    """
+    sort_col = {
+        "popularity": "m.popularity",
+        "vote_average": "m.vote_average",
+        "release_date": "m.release_date",
+    }[sort_by]
+
+    sql = f"""
+        SELECT DISTINCT
+            m.id, m.title, m.release_date, m.popularity,
+            m.vote_average, m.vote_count, m.overview
+        FROM movies m
+        JOIN movie_cast mc ON m.id = mc.movie_id
+        WHERE LOWER(mc.name) LIKE LOWER(?)
+        ORDER BY {sort_col} {sort_order.upper()} NULLS LAST
+        LIMIT ? OFFSET ?
+    """
+    rows = con.execute(sql, [f"%{actor_name}%", limit, offset]).fetchdf()
+    if rows.empty:
+        return []
+    return [MovieSummary(**r) for r in rows.to_dict(orient="records")]
+
+
+@app.get(
+    "/actors/{actor_name}/characters",
+    response_model=List[ActorCharacter],
+    summary="Get all characters played by an actor",
+    tags=["Crew & Cast"],
+)
+def actor_characters(
+    actor_name: str,
+    sort_by: str = Query(
+        "release_date",
+        description="Sort field: release_date | popularity | vote_average",
+        enum=["release_date", "popularity", "vote_average"],
+    ),
+    sort_order: str = Query("desc", description="Sort direction", enum=["asc", "desc"]),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    """
+    Return every character an actor (partial name match) has played,
+    together with the movie title and release date.
+    """
+    sort_col = {
+        "release_date": "m.release_date",
+        "popularity": "m.popularity",
+        "vote_average": "m.vote_average",
+    }[sort_by]
+
+    sql = f"""
+        SELECT
+            m.id        AS movie_id,
+            m.title,
+            m.release_date,
+            mc.character,
+            mc."order"
+        FROM movie_cast mc
+        JOIN movies m ON m.id = mc.movie_id
+        WHERE LOWER(mc.name) LIKE LOWER(?)
+        ORDER BY {sort_col} {sort_order.upper()} NULLS LAST
+        LIMIT ? OFFSET ?
+    """
+    rows = con.execute(sql, [f"%{actor_name}%", limit, offset]).fetchdf()
+    if rows.empty:
+        return []
+    return [ActorCharacter(**r) for r in rows.to_dict(orient="records")]
+
+
+if __name__ == '__main__':
+    uvicorn.run(app, host="0.0.0.0", port=8080)
+
