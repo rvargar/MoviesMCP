@@ -7,8 +7,7 @@ Model: OpenRouter via LiteLLM (OpenAI-compatible endpoint).
 Environment variables:
     OPENROUTER_API_KEY      - your OpenRouter API key (required)
     OPENROUTER_MODEL        - model slug (default: openai/gpt-4o)
-    MOVIES_API_BASE_URL     - Movies FastAPI base URL (default: http://localhost:8000)
-    MCP_SERVER_SCRIPT       - path to movies_mcp_server.py (default: movies_mcp_server.py)
+    MOVIES_API_BASE_URL     - Movies FastAPI base URL (default: http://localhost:8080)
 """
 
 import os
@@ -19,7 +18,7 @@ from strands import Agent
 from strands.models.litellm import LiteLLMModel
 
 
-from mcp.client.streamable_http import streamable_http_client #import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 
 from strands.tools.mcp import MCPClient
 
@@ -81,7 +80,6 @@ def _build_model() -> LiteLLMModel:
         params={
             "api_key": OPENROUTER_API_KEY,
             "api_base": "https://openrouter.ai/api/v1",
-            # Optional: identify your app in OpenRouter dashboard
             "extra_headers": {
                 "HTTP-Referer": "http://localhost:7860",
                 "X-Title": "Movies AI Assistant",
