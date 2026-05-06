@@ -89,6 +89,7 @@ Example question:
 <br><b>Can you show sci-fi movies that Leonardo Dicaprio is playing and produced before 2015?</b>
 
 Response:<br>
+
 `gpt-oss-120b:free:`<br>
 Here’s the sci‑fi film that matches your criteria:
 
@@ -103,6 +104,7 @@ Here is a sci-fi movie starring Leonardo DiCaprio produced before 2015:
 | Title | Release Year | Rating | Description |
 |--------|---------------|--------|-------------|
 | Inception | 2010 | 8.1 | Cobb, a skilled thief who commits corporate espionage by infiltrating the subconscious of his targets is offered a chance to regain his old life as payment for a task considered to be impossible: "inception", the implantation of another person's idea into a target's subconscious. |
+
 <br><br>
 <b>What are the top 5 most popular movies directed by Christopher Nolan?</b><br><br>
 `gpt-oss-120b:free:`<br>
