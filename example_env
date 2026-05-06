@@ -6,4 +6,3 @@ MOVIES_API_BASE_URL = "http://localhost:8080"
 
 OPENROUTER_API_KEY = "sk-API-KEY-XXXX"
 OPENROUTER_MODEL = "openai/gpt-oss-120b:free" #"mistralai/mistral-medium-3" #"mistralai/mistral-medium-3-5"
-MCP_SERVER_SCRIPT = "movies_mcp_server.py"
