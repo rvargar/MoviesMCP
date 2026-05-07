@@ -16,6 +16,7 @@ import httpx
 import gradio as gr
 from strands import Agent
 from strands.models.litellm import LiteLLMModel
+from strands.telemetry import StrandsTelemetry
 
 
 from mcp.client.streamable_http import streamable_http_client
@@ -94,6 +95,13 @@ def build_agent() -> tuple[Agent, MCPClient]:
     streamable_http_mcp_client = MCPClient(
         lambda: streamable_http_client("http://localhost:8000/mcp")
     )
+
+    strands_telemetry = StrandsTelemetry()
+    strands_telemetry.setup_otlp_exporter()  # Send traces to OTLP endpoint
+    strands_telemetry.setup_console_exporter()  # Print traces to console
+    strands_telemetry.setup_meter(
+        enable_console_exporter=True,
+        enable_otlp_exporter=True)  # Setup new meter provider and sets it as global
 
     agent = Agent(
         model=_build_model(),
